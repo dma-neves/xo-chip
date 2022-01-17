@@ -1,4 +1,4 @@
-# chip8
+# XO-Chip
 
 **Description**
   - A XO-Chip (Chip8 + Octo Extensions) emulator/interpreter written in c using the CSFML library for IO.
@@ -12,6 +12,10 @@
   - [CSFML library](https://www.sfml-dev.org/download/csfml/).
 
 **Controls**
-<br/> ![alt text](https://github.com/dma-neves/chip8/blob/main/other/controls.png)
+<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/controls.png)
+
+**Games**
+  - Some games are available inside the /roms folder.
+  - More Chip8 and XO-Chip games can be found at https://johnearnest.github.io/chip8Archive/?sort=platform.
 
 **Images**
