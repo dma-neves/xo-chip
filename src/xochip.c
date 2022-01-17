@@ -19,40 +19,40 @@ void sys(XOChip* xochip)
     //Ignore
 }
 
-// Jump to addr
-void jp(XOChip* xochip, uint16_t addr)
+// Jump to adr
+void jp(XOChip* xochip, uint16_t adr)
 {
-    xochip->PC = addr;
+    xochip->PC = adr;
     xochip->pcIncFlag = 0;
 }
 
-// Call subroutine at addr
-void call(XOChip* xochip, uint16_t addr)
+// Call subroutine at adr
+void call(XOChip* xochip, uint16_t adr)
 {
     xochip->stack[xochip->SP++] = xochip->PC;
-    xochip->PC = addr;
+    xochip->PC = adr;
     xochip->pcIncFlag = 0;
 }
 
 // Skip next instruction if Vx = kk
-void se_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk)
+void skp_eq_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t instSize)
 {
     if(xochip->V[x] == kk)
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
 // Skip next instruction if Vx != kk
-void sne_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk)
+void skp_neq_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t instSize)
 {
     if(xochip->V[x] != kk)
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
 // Skip next instruction if Vx = Vy
-void se_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+void skp_eq_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t instSize)
 {
     if(xochip->V[x] == xochip->V[y])
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
 // Load kk to Vx
@@ -113,7 +113,7 @@ void shr_vx(XOChip* xochip, uint8_t x)
 }
 
 // Vx = Vy - Vx
-void subn_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+void sub_neg_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
     xochip->V[0xF] = ( xochip->V[y] >= xochip->V[x] );
     xochip->V[x] = xochip->V[y] - xochip->V[x];
@@ -127,22 +127,22 @@ void shl_vx(XOChip* xochip, uint8_t x)
 }
 
 // Skip next instruction if Vx != Vy
-void sne_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+void skp_neq_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t instSize)
 {
     if(xochip->V[x] != xochip->V[y])
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
-// Load addr to I
-void ld_i_addr(XOChip* xochip, uint16_t addr)
+// Load adr to I
+void ld_i_adr(XOChip* xochip, uint16_t adr)
 {
-    xochip->I = addr;
+    xochip->I = adr;
 }
 
-// Jump to V0 + addr
-void jp_v0_addr(XOChip* xochip, uint16_t addr)
+// Jump to V0 + adr
+void jp_v0_adr(XOChip* xochip, uint16_t adr)
 {
-    xochip->PC = xochip->V[0] + addr;
+    xochip->PC = xochip->V[0] + adr;
 }
 
 // Load rnd & kk to Vx
@@ -178,17 +178,17 @@ void drw_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t n)
 }
 
 // Skip next instruction if key with the value of Vx is pressed
-void skp_vx(XOChip* xochip, uint8_t x)
+void skp_p_vx(XOChip* xochip, uint8_t x, uint8_t instSize)
 {
     if(xochip->keyboard[xochip->V[x]])
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
 // Skip next instruction if key with the value of Vx is not pressed
-void sknp_vx(XOChip* xochip, uint8_t x)
+void skp_np_vx(XOChip* xochip, uint8_t x, uint8_t instSize)
 {
     if(!xochip->keyboard[xochip->V[x]])
-        xochip->PC += 2;
+        xochip->PC += instSize;
 }
 
 // Vx = delay timer value
@@ -265,38 +265,57 @@ void ld_vx_i(XOChip* xochip, uint8_t x)
 
 
 
-void st_vx_vy(XOChip* xochip, uint8_t x, uint8_t y) {
+// Save the range of registers Vx-Vy to memory starting at location I
+void st_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+{
+    for(int i = 0; i <= abs(y-x); i++) {
+
+        xochip->mem[xochip->I + i] = xochip->V[ (y>x) ? x+i : x-i ];
+    }
+}
+
+// Load the range of registers Vx-Vy from memory starting at location I
+void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+{
+    for(int i = 0; i <= abs(y-x); i++)
+    {
+        xochip->V[ (y>x) ? x+i : x-i ] = xochip->mem[xochip->I + i];
+    }
+}
+
+// Store V0 - Vx to flag registers
+void st_fl_vx(XOChip* xochip, uint8_t x)
+{
+	memcpy(xochip->F, xochip->V, (x+1)*sizeof(uint8_t));
+}
+
+// Load V0 - Vx from flag registers
+void ld_fl_vx(XOChip* xochip, uint8_t x)
+{
+	memcpy(xochip->V, xochip->F, (x+1)*sizeof(uint8_t));
+}
+
+void ld_i_adr16(XOChip* xochip, uint16_t adr)
+{
+    xochip->I = adr;
+}
+
+void plane_n(XOChip* xochip, uint8_t n)
+{
 	//TODO
 }
 
-void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y) {
+void audio(XOChip* xochip)
+{
 	//TODO
 }
 
-void st_fl_vx(XOChip* xochip, uint8_t x) {
+void pitch_vx(XOChip* xochip, uint8_t x)
+{
 	//TODO
 }
 
-void ld_fl_vx(XOChip* xochip, uint8_t x) {
-	//TODO
-}
-
-void ld_i_addr16(XOChip* xochip, uint16_t addr) {
-	//TODO
-}
-
-void plane_n(XOChip* xochip, uint8_t n) {
-	//TODO
-}
-
-void audio(XOChip* xochip) {
-	//TODO
-}
-
-void pitch_vx(XOChip* xochip, uint8_t x) {
-	//TODO
-}
-
-void scrollup_n(XOChip* xochip, uint8_t n) {
+void scrollup_n(XOChip* xochip, uint8_t n)
+{
 	//TODO
 }

@@ -1,10 +1,10 @@
-#ifndef CHIP8
-#define CHIP8
+#ifndef XOCHIP
+#define XOCHIP
 
 #include <stdint.h>
 #include <string.h>
 
-#define MEM_SIZE   0xFFF
+#define MEM_SIZE   0xFFFF
 #define PROG_START 0x200
 #define SCREEN_WIDTH 64
 #define SCREEN_HEIGHT 32
@@ -26,6 +26,8 @@ typedef struct _XOChip
 
     uint16_t stack[16];             // stack 16 16-bit values
 
+    uint8_t F[16];                 // flag registers (XO-Chip)
+
     uint8_t screen[SCREEN_HEIGHT][SCREEN_WIDTH];
     uint8_t keyboard[NUM_KEYS];
 
@@ -37,11 +39,11 @@ typedef struct _XOChip
 void cls(XOChip* xochip);
 void ret(XOChip* xochip);
 void sys(XOChip* xochip);
-void jp(XOChip* xochip, uint16_t addr);
-void call(XOChip* xochip, uint16_t addr);
-void se_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk);
-void sne_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk);
-void se_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
+void jp(XOChip* xochip, uint16_t adr);
+void call(XOChip* xochip, uint16_t adr);
+void skp_eq_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t instSize);
+void skp_neq_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t instSize);
+void skp_eq_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t instSize);
 void ld_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk);
 void add_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk);
 void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
@@ -51,15 +53,15 @@ void xor_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void add_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void sub_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void shr_vx(XOChip* xochip, uint8_t x);
-void subn_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
+void sub_neg_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void shl_vx(XOChip* xochip, uint8_t x);
-void sne_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
-void ld_i_addr(XOChip* xochip, uint16_t addr);
-void jp_v0_addr(XOChip* xochip, uint16_t addr);
+void skp_neq_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t instSize);
+void ld_i_adr(XOChip* xochip, uint16_t adr);
+void jp_v0_adr(XOChip* xochip, uint16_t adr);
 void rnd_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t rnd);
 void drw_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t n);
-void skp_vx(XOChip* xochip, uint8_t x);
-void sknp_vx(XOChip* xochip, uint8_t x);
+void skp_p_vx(XOChip* xochip, uint8_t x, uint8_t instSize);
+void skp_np_vx(XOChip* xochip, uint8_t x, uint8_t instSize);
 void ld_vx_dt(XOChip* xochip, uint8_t x);
 void ld_vx_k(XOChip* xochip, uint8_t x);
 void ld_dt_vx(XOChip* xochip, uint8_t x);
@@ -76,7 +78,7 @@ void st_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void st_fl_vx(XOChip* xochip, uint8_t x);
 void ld_fl_vx(XOChip* xochip, uint8_t x);
-void ld_i_addr16(XOChip* xochip, uint16_t addr);
+void ld_i_adr16(XOChip* xochip, uint16_t adr);
 void plane_n(XOChip* xochip, uint8_t n);
 void audio(XOChip* xochip);
 void pitch_vx(XOChip* xochip, uint8_t x);
