@@ -17,18 +17,17 @@
 typedef struct _XOChip
 {
     uint8_t mem[MEM_SIZE];          // 4096 byte memory
+    uint16_t stack[16];             // stack 16 16-bit values
 
+    uint8_t F[16];                  // flag registers (XO-Chip)
     uint8_t V[16];                  // 16 8-bit registers
     uint16_t I;                     // 16-bit register for addresses
     uint8_t SP;                     // 8-bit stack pointer
     uint16_t PC;                    // 16-bit program counter
     uint8_t delayTimer, soundTimer; // 8-bit registers for sound and delay timers
+    uint8_t bitmask;                // Bitplane bitmask
 
-    uint16_t stack[16];             // stack 16 16-bit values
-
-    uint8_t F[16];                 // flag registers (XO-Chip)
-
-    uint8_t screen[SCREEN_HEIGHT][SCREEN_WIDTH];
+    uint8_t bitplane[2][SCREEN_HEIGHT][SCREEN_WIDTH];
     uint8_t keyboard[NUM_KEYS];
 
     uint8_t pcIncFlag;
@@ -74,10 +73,10 @@ void ld_vx_i(XOChip* xochip, uint8_t x);
 
 /* -------------- XO-Chip instructions -------------- */
 
-void st_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
-void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
-void st_fl_vx(XOChip* xochip, uint8_t x);
-void ld_fl_vx(XOChip* xochip, uint8_t x);
+void st_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
+void ld_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
+void save_fl(XOChip* xochip, uint8_t x);
+void load_fl(XOChip* xochip, uint8_t x);
 void ld_i_adr16(XOChip* xochip, uint16_t adr);
 void plane_n(XOChip* xochip, uint8_t n);
 void audio(XOChip* xochip);

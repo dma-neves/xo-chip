@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <SFML/Graphics.h>
 #include <SFML/Audio.h>
 
-#include "emulator.h"
+#include "xochip.h"
 #include "buzzer.h"
+#include "display.h"
 
 #define W_HEIGHT 320
 #define W_WIDTH  640
@@ -12,7 +14,7 @@
 //#define DEBUG
 
 /* SFML */
-sfClock* clock;
+sfClock* sfclock;
 sfRenderWindow* window;
 sfVideoMode mode;
 static sfSound* buzzer;
@@ -59,7 +61,7 @@ int main(int argc, char** argv)
     {
         int scale = (argc == 3) ? atoi( argv[2] ) : 1;
         setupWindow(scale);
-        clock = sfClock_create();
+        sfclock = sfClock_create();
         buzzer = buzzerCreate();
         
         XOChip* xochip = malloc(sizeof(XOChip));
@@ -73,7 +75,7 @@ int main(int argc, char** argv)
         {
             handleCloseEvent();
 
-            float dt = sfTime_asSeconds( sfClock_restart(clock) );
+            float dt = sfTime_asSeconds( sfClock_restart(sfclock) );
             timer_60 += dt;
             timer_500 += dt;
 
@@ -87,7 +89,7 @@ int main(int argc, char** argv)
 
             if(timer_500 >= 1.f/500.f)
             {
-                // The chip-8 runs on a 500Hz "clock"
+                // The chip-8 runs on a 500Hz "sfclock"
                 timer_500 = 0;
                 executeInstruction(xochip);
             }
@@ -96,7 +98,7 @@ int main(int argc, char** argv)
         }
 
         free(xochip);
-        sfClock_destroy(clock);
+        sfClock_destroy(sfclock);
         sfRenderWindow_destroy(window);
         buzzerDestroy();
     }
@@ -155,9 +157,9 @@ void resetSystem(XOChip* xochip)
     address16f = 0;
     memset(xochip, 0, sizeof(XOChip));
     xochip->PC = PROG_START;
+    xochip->bitmask = 1;
     loadFonts(xochip);
     srand(time(NULL));
-
     resetDisplay();
 }
 
@@ -232,8 +234,20 @@ void executeInstruction(XOChip* xochip)
             break;
 
         case 0x5:
-            if(word[0] == 0)
-                skp_eq_vx_vy(xochip, word[2], word[1], nextInstSize);
+            switch(word[0])
+            {
+                case 0x0:
+                    skp_eq_vx_vy(xochip, word[2], word[1], nextInstSize);
+                    break;
+
+                case 0x2:
+                    st_range_vx_vy(xochip, word[2], word[1]);
+                    break;
+
+                case 0x3:
+                    ld_range_vx_vy(xochip, word[2], word[1]);
+                    break;
+            }
             break;
 
         case 0x6:
@@ -359,6 +373,14 @@ void executeInstruction(XOChip* xochip)
 
                 case 0x65:
                     ld_vx_i(xochip, word[2]);
+                    break;
+
+                case 0x75:
+                    save_fl(xochip, word[2]);
+                    break;
+
+                case 0x85:
+                    load_fl(xochip, word[2]);
                     break;
             }
             break;
