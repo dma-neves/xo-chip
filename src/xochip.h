@@ -71,12 +71,14 @@ void st_b_vx(XOChip* xochip, uint8_t x);
 void st_i_vx(XOChip* xochip, uint8_t x);
 void ld_vx_i(XOChip* xochip, uint8_t x);
 
+/* -------------- Super Chip instructions -------------- */
+
 /* -------------- XO-Chip instructions -------------- */
 
 void st_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
 void ld_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
-void save_fl(XOChip* xochip, uint8_t x);
-void load_fl(XOChip* xochip, uint8_t x);
+void st_fl(XOChip* xochip, uint8_t x);
+void ld_fl(XOChip* xochip, uint8_t x);
 void ld_i_adr16(XOChip* xochip, uint16_t adr);
 void plane_n(XOChip* xochip, uint8_t n);
 void audio(XOChip* xochip);

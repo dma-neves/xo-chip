@@ -17,13 +17,13 @@ void setColor(sfRectangleShape* rect, uint8_t bp0, uint8_t bp1)
     // TODO
 
     if(bp0 && bp1)
-        sfRectangleShape_setFillColor(rect, sfColor_fromRGB(255,255,255));
+        sfRectangleShape_setFillColor(rect, sfColor_fromRGB(100,100,10));
     
     else if(bp0)
         sfRectangleShape_setFillColor(rect, sfColor_fromRGB(255,255,255));
 
     else if(bp1)
-        sfRectangleShape_setFillColor(rect, sfColor_fromRGB(255,255,255));
+        sfRectangleShape_setFillColor(rect, sfColor_fromRGB(255,100,100));
 }
 
 void renderDisplay(XOChip* xochip, sfRenderWindow* window)

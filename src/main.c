@@ -376,11 +376,11 @@ void executeInstruction(XOChip* xochip)
                     break;
 
                 case 0x75:
-                    save_fl(xochip, word[2]);
+                    st_fl(xochip, word[2]);
                     break;
 
                 case 0x85:
-                    load_fl(xochip, word[2]);
+                    ld_fl(xochip, word[2]);
                     break;
             }
             break;

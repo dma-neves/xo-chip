@@ -119,6 +119,8 @@ void sub_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 // Vx = Vx >> 1
 void shr_vx(XOChip* xochip, uint8_t x)
 {
+    // TODO: Check compatibility (shift Vy into Vx)
+    
     xochip->V[0xF] = (xochip->V[x] & 1);
     xochip->V[x] = xochip->V[x] >> 1;
 }
@@ -133,6 +135,8 @@ void sub_neg_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 // Vx = Vx << 1
 void shl_vx(XOChip* xochip, uint8_t x)
 {
+    // TODO: Check compatibility (shift Vy into Vx)
+
     xochip->V[0xF] = ( (xochip->V[x] & 0x80) != 0 );
     xochip->V[x] = xochip->V[x] << 1;
 }
@@ -266,6 +270,8 @@ void st_b_vx(XOChip* xochip, uint8_t x)
 // Store registers V0 through Vx to memory starting at location I
 void st_i_vx(XOChip* xochip, uint8_t x)
 {
+    // TODO: Check compatibility (i increment)
+
     for(int i = 0; i <= x; i++)
         xochip->mem[xochip->I + i] = xochip->V[x];
 }
@@ -273,6 +279,9 @@ void st_i_vx(XOChip* xochip, uint8_t x)
 // Load registers V0 through Vx from memory starting at location I
 void ld_vx_i(XOChip* xochip, uint8_t x)
 {
+    // TODO: Check compatibility (i increment)
+
+
     for(int i = 0; i <= x; i++)
         xochip->V[i] = xochip->mem[xochip->I + i];
 }
@@ -302,13 +311,13 @@ void ld_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 }
 
 // Store V0 - Vx to flag registers
-void save_fl(XOChip* xochip, uint8_t x)
+void st_fl(XOChip* xochip, uint8_t x)
 {
 	memcpy(xochip->F, xochip->V, (x+1));
 }
 
 // Load V0 - Vx from flag registers
-void load_fl(XOChip* xochip, uint8_t x)
+void ld_fl(XOChip* xochip, uint8_t x)
 {
 	memcpy(xochip->V, xochip->F, (x+1));
 }
