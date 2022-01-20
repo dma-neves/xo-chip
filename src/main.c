@@ -37,14 +37,15 @@ int main(int argc, char** argv)
 {
     if(argc < 2)
     {
-        printf("usage: ./xochip.out rom.ch8 speedup displayScale colorScheme\n");
-        printf("default speedup: 1\ndefault displayScale: 1\ndefault colorScheme: 0\n");
+        printf("usage: ./xochip.out rom.ch8 speedup displayScale colorScheme printFps\n");
+        printf("default speedup: 1\ndefault displayScale: 1\ndefault colorScheme: 0\ndefault printFps: 0\n");
     }
     else
     {
-        int speedup = (argc == 3) ? atoi( argv[2] ) : 1;
-        int scale = (argc == 4) ? atoi( argv[3] ) : 1;
-        int colorScheme = (argc == 5) ? atoi( argv[4] ) : 0;
+        int speedup = (argc >= 3) ? atoi( argv[2] ) : 1;
+        int scale = (argc >= 4) ? atoi( argv[3] ) : 1;
+        int colorScheme = (argc >= 5) ? atoi( argv[4] ) : 0;
+        int printFps = (argc >= 6) ? atoi( argv[5] ) : 0;
         setupWindow(scale);
         setupDisplay(colorScheme);
 
@@ -57,6 +58,8 @@ int main(int argc, char** argv)
 
         float timer_60 = 0;  // 60Hz  timer
         float timer_500 = 0; // 500Hz timer
+        float timer_1 = 0;   // 1Hz timer (print fps)
+        int fps = 0;
 
         while(runningf)
         {
@@ -65,6 +68,15 @@ int main(int argc, char** argv)
             float dt = sfTime_asSeconds( sfClock_restart(sfclock) );
             timer_60 += dt;
             timer_500 += dt;
+            timer_1 += dt;
+
+            if(printFps && timer_1 >= 1.f)
+            {
+                // Print fps at 1Hz frequency
+                printf("fps: %d\n", fps);
+                timer_1 = 0;
+                fps = 0;
+            }
 
             if(timer_60 >= 1.f/60.f)
             {
@@ -72,6 +84,7 @@ int main(int argc, char** argv)
                 timer_60 = 0;
                 updateTimers(xochip);
                 renderDisplay(xochip, window);
+                fps++;
             }
 
             if(timer_500 >= 1.f/(500.f * speedup))
@@ -124,12 +137,19 @@ int loadRom(char* file, XOChip* xochip)
     fp = fopen(file, "rb");
     if (fp == NULL)
     {
-        fprintf(stderr, "cannot open input file\n");
+        fprintf(stderr, "error: cannot open input file\n");
         return -1;
     }
 
     for (i = 0; i < max && (c = getc(fp)) != EOF; i++)
         xochip->mem[PROG_START + i] = (uint8_t)c;
+
+    if(c != EOF)
+    {
+        fprintf(stderr, "error: rom to big (Max size: %d bytes)\n", max);
+        fclose(fp);
+        return -1;
+    }
 
     return fclose(fp);
 }
@@ -431,10 +451,11 @@ void updateTimers(XOChip* xochip)
     if(xochip->soundTimer)
     {
         xochip->soundTimer--;
-        sfSound_play(buzzer);
+        //sfSound_play(buzzer);
     }
     else
-        sfSound_stop(buzzer);
+        ;
+        // sfSound_stop(buzzer);
 }
 
 void handleInput(XOChip* xochip)

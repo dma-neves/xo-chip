@@ -78,5 +78,5 @@ void renderDisplay(XOChip* xochip, sfRenderWindow* window)
     }
 
     sfRenderWindow_display(window);
-    //updateBuffer(xochip);
+    updateBuffer(xochip);
 }
