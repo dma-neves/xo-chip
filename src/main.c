@@ -37,13 +37,14 @@ int main(int argc, char** argv)
 {
     if(argc < 2)
     {
-        printf("usage: ./xochip.out rom.ch8 displayScale colorScheme\n");
-        printf("default displayScale: 1\ndefault colorScheme: 0\n");
+        printf("usage: ./xochip.out rom.ch8 speedup displayScale colorScheme\n");
+        printf("default speedup: 1\ndefault displayScale: 1\ndefault colorScheme: 0\n");
     }
     else
     {
-        int scale = (argc == 3) ? atoi( argv[2] ) : 1;
-        int colorScheme = (argc == 4) ? atoi( argv[3] ) : 0;
+        int speedup = (argc == 3) ? atoi( argv[2] ) : 1;
+        int scale = (argc == 4) ? atoi( argv[3] ) : 1;
+        int colorScheme = (argc == 5) ? atoi( argv[4] ) : 0;
         setupWindow(scale);
         setupDisplay(colorScheme);
 
@@ -73,7 +74,7 @@ int main(int argc, char** argv)
                 renderDisplay(xochip, window);
             }
 
-            if(timer_500 >= 1.f/5000.f)
+            if(timer_500 >= 1.f/(500.f * speedup))
             {
                 handleInput(xochip);
                 // The chip-8 has a clock speed of 500Hz
