@@ -1,6 +1,8 @@
 #include "xochip.h"
 
-#include <stdlib.h>
+#include <stdio.h>
+
+typedef enum _Direction{up, down, left, right} Direction;
 
 /* ---------------------------- chip8 instructions ---------------------------- */
 
@@ -10,10 +12,10 @@ void cls(XOChip* xochip)
     // TODO: improve sizeof
 
     if(xochip->bitmask == 1)
-        memset(xochip->bitplane, 0, SCREEN_HEIGHT*SCREEN_WIDTH);
+        memset(xochip->bitplane[0], 0, SCHIP_SCREEN_HEIGHT*SCHIP_SCREEN_WIDTH);
     
     else if(xochip->bitmask == 2)
-        memset(xochip->bitplane+1, 0, SCREEN_HEIGHT*SCREEN_WIDTH);
+        memset(xochip->bitplane[1], 0, SCHIP_SCREEN_HEIGHT*SCHIP_SCREEN_WIDTH);
 
     else if(xochip->bitmask == 3)
         memset(xochip->bitplane, 0, sizeof(xochip->bitplane));
@@ -87,19 +89,19 @@ void ld_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 // Vx = Vx | Vy
 void or_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
-    xochip->V[x] = xochip->V[x] | xochip->V[y];
+    xochip->V[x] |= xochip->V[y];
 }
 
 // Vx = Vx & Vy
 void and_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
-    xochip->V[x] = xochip->V[x] & xochip->V[y];
+    xochip->V[x] &= xochip->V[y];
 }
 
 // Vx = Vx ^ Vy
 void xor_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
-    xochip->V[x] = xochip->V[x] ^ xochip->V[y];
+    xochip->V[x] ^=  xochip->V[y];
 }
 
 // Vx += Vy
@@ -112,7 +114,7 @@ void add_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 // Vx -= Vy
 void sub_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
-    xochip->V[0xF] = ( xochip->V[x] >= xochip->V[y] );
+    xochip->V[0xF] = ( xochip->V[x] > xochip->V[y] );
     xochip->V[x] -= xochip->V[y];
 }
 
@@ -122,13 +124,13 @@ void shr_vx(XOChip* xochip, uint8_t x)
     // TODO: Check compatibility (shift Vy into Vx)
     
     xochip->V[0xF] = (xochip->V[x] & 1);
-    xochip->V[x] = xochip->V[x] >> 1;
+    xochip->V[x] >>= 1;
 }
 
 // Vx = Vy - Vx
 void sub_neg_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
 {
-    xochip->V[0xF] = ( xochip->V[y] >= xochip->V[x] );
+    xochip->V[0xF] = ( xochip->V[y] > xochip->V[x] );
     xochip->V[x] = xochip->V[y] - xochip->V[x];
 }
 
@@ -137,8 +139,8 @@ void shl_vx(XOChip* xochip, uint8_t x)
 {
     // TODO: Check compatibility (shift Vy into Vx)
 
-    xochip->V[0xF] = ( (xochip->V[x] & 0x80) != 0 );
-    xochip->V[x] = xochip->V[x] << 1;
+    xochip->V[0xF] = xochip->V[x] >> 7;
+    xochip->V[x] <<= 1;
 }
 
 // Skip next instruction if Vx != Vy
@@ -166,40 +168,56 @@ void rnd_vx_kk(XOChip* xochip, uint8_t x, uint8_t kk, uint8_t rnd)
     xochip->V[x] = rnd & kk;
 }
 
+void draw_plane(XOChip* xochip, int plane, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+    uint16_t adr = xochip->I;
+    
+    for(int row = 0; row < height; row++)
+    {   
+        // Sprite pixel set (8 or 16 pixels wide)
+        uint16_t sprite_ps = (width == 8) ? 
+            xochip->mem[adr++] : 
+            ( (uint16_t)xochip->mem[adr++] << 8 ) | (uint16_t)xochip->mem[adr++];
+
+        for(int col = 0; col < width; col++)
+        {
+            // TODO: Check compatibility (screen wrapping)
+
+            int py = (xochip->V[y]+row) % xochip->screen_h;
+            int px = (xochip->V[x]+col) % xochip->screen_w;
+
+            uint16_t bmask = (width == 8) ? (0x80 >> col) : (0x8000 >> col);
+
+            uint8_t* pixel = &xochip->bitplane[plane][py][px];
+            uint8_t sprite_p = (sprite_ps & bmask) != 0; 
+            uint8_t old_p = *pixel;
+            *pixel = old_p ^ sprite_p;
+
+            // If pixel is ereased set collision register to true
+            if(old_p == 1 && *pixel == 0)
+                xochip->V[0xF] = 1;
+        }
+    }
+}
+
+void draw(XOChip* xochip, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+    // Reset collision register to false
+    xochip->V[0xF] = 0;
+
+    if(xochip->bitmask == 1 || xochip->bitmask == 3)
+        draw_plane(xochip, 0, x, y, width, height);
+
+    if(xochip->bitmask == 2 || xochip->bitmask == 3)
+        draw_plane(xochip, 1, x, y, width, height);
+}
 
 // Draw sprite at display coordinates (Vx, Vy), stored at address I with n bytes.
 void drw_vx_vy(XOChip* xochip, uint8_t x, uint8_t y, uint8_t n)
 {
-    // Reset collision register to false
-    xochip->V[0xF] = 0;
-    uint16_t adr = xochip->I;
-    
-    for(int plane = 0; plane < 2; plane++)
-    {
-        if(xochip->bitmask == 3 || xochip->bitmask == plane+1)
-        {
-            for(int i = 0; i < n; i++)
-            {
-                uint8_t sprite_ps = xochip->mem[adr++]; // Sprite pixel set (8 pixels)
-
-                for(int j = 0; j < 8; j++)
-                {
-                    int py = (xochip->V[y]+i) % SCREEN_HEIGHT;
-                    int px = (xochip->V[x]+j) % SCREEN_WIDTH;
-
-                    uint8_t* pixel = &xochip->bitplane[plane][py][px];
-                    uint8_t sprite_p = ( sprite_ps & (0x80 >> j) ) != 0; 
-                    uint8_t screen_p = *pixel;
-                    *pixel = screen_p ^ sprite_p;
-
-                    // If pixel is ereased set collision register to true
-                    if(screen_p == 1 && *pixel == 0)
-                        xochip->V[0xF] = 1;
-                }
-            }
-        }
-    }
+    draw(xochip, x, y, 8, n);
 }
+
 
 // Skip next instruction if key with the value of Vx is pressed
 void skp_p_vx(XOChip* xochip, uint8_t x, uint8_t instSize)
@@ -251,12 +269,13 @@ void ld_st_vx(XOChip* xochip, uint8_t x)
 void add_i_vx(XOChip* xochip, uint8_t x)
 {
     xochip->I += xochip->V[x];
+    xochip->V[0xF] = xochip->I > 0xFFF;
 }
 
 // I = location of sprite for digit Vx
 void ld_i_vx(XOChip* xochip, uint8_t x)
 {
-    xochip->I = FONTSET_START_ADDRESS + xochip->V[x] * FONTSET_BYTES_PER_DIGIT;
+    xochip->I = CHIP8_FONTSET_START_ADDRESS + xochip->V[x] * CHIP8_FONTSET_BYTES_PER_CHAR;
 }
 
 // Store BCD representation of Vx in memory locations I, I+1, and I+2
@@ -264,7 +283,7 @@ void st_b_vx(XOChip* xochip, uint8_t x)
 {
     xochip->mem[xochip->I] = xochip->V[x]/100;
     xochip->mem[xochip->I+1] = (xochip->V[x]/10) % 10;
-    xochip->mem[xochip->I+2] = (xochip->V[x] % 100) % 10;
+    xochip->mem[xochip->I+2] = xochip->V[x] % 10;
 }
 
 // Store registers V0 through Vx to memory starting at location I
@@ -272,8 +291,7 @@ void st_i_vx(XOChip* xochip, uint8_t x)
 {
     // TODO: Check compatibility (i increment)
 
-    for(int i = 0; i <= x; i++)
-        xochip->mem[xochip->I + i] = xochip->V[x];
+    memcpy(&xochip->mem[xochip->I], xochip->V, x+1);
 }
 
 // Load registers V0 through Vx from memory starting at location I
@@ -281,16 +299,104 @@ void ld_vx_i(XOChip* xochip, uint8_t x)
 {
     // TODO: Check compatibility (i increment)
 
-
-    for(int i = 0; i <= x; i++)
-        xochip->V[i] = xochip->mem[xochip->I + i];
+    memcpy(xochip->V, &xochip->mem[xochip->I], x+1);
 }
 
+/* ---------------------------- SuperChip instructions ---------------------------- */
 
+void plane_scroll(XOChip* xochip, uint8_t plane, Direction dir, uint8_t n)
+{   
+    // TODO: Check screen wrapping
+
+    int size = xochip->screen_h*xochip->screen_w;
+    uint8_t buf[xochip->screen_h][xochip->screen_w];
+    memset(buf, 0, size);
+
+    int x_start = 0;
+    int x_end = xochip->screen_w;
+    int y_start = 0;
+    int y_end = xochip->screen_h;
+
+    int buf_y_offset = 0;
+    int buf_x_offset = 0;
+
+    switch (dir)
+    {
+        case up:
+            y_start = n;
+            buf_y_offset = -n;
+            break;
+        
+        case down:
+            y_end = xochip->screen_h-n;
+            buf_y_offset = n;
+            break;
+
+        case right:
+            x_end = xochip->screen_w-n;
+            buf_x_offset = n;
+            break;
+
+        case left:
+            x_start = n;
+            buf_x_offset = -n;
+            break;
+    }
+
+    for(int y = y_start; y < y_end; y++)
+        for(int x = x_start; x < x_end; x++)
+            buf[y+buf_y_offset][x+buf_x_offset] = xochip->bitplane[plane][y][x];
+
+    memcpy(xochip->bitplane[plane], buf, size);
+}
+
+void scroll(XOChip* xochip, Direction dir, uint8_t n)
+{
+    if(xochip->bitmask == 1 || xochip->bitmask == 3)
+        plane_scroll(xochip, 0, dir, n);
+
+    if(xochip->bitmask == 2 || xochip->bitmask == 3)
+        plane_scroll(xochip, 1, dir, n);   
+}
+
+void hires(XOChip* xochip)
+{
+    xochip->screen_h = SCHIP_SCREEN_HEIGHT;
+    xochip->screen_w = SCHIP_SCREEN_WIDTH;
+}
+
+void lores(XOChip* xochip)
+{
+    xochip->screen_h = CHIP8_SCREEN_HEIGHT;
+    xochip->screen_w = CHIP8_SCREEN_WIDTH;
+}
+
+void scrolldown_n(XOChip* xochip, uint8_t n)
+{
+    scroll(xochip, down, n);
+}
+
+void scrollright(XOChip* xochip)
+{
+    scroll(xochip, right, 4);
+}
+
+void scrollleft(XOChip* xochip)
+{
+    scroll(xochip, left, 4);
+}
+
+void big_drw_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
+{
+    draw(xochip, x, y, 16, 16);
+}
+
+void big_ld_i_vx(XOChip* xochip, uint8_t x)
+{
+    xochip->I = SCHIP_FONTSET_START_ADDRESS + xochip->V[x] * SCHIP_FONTSET_BYTES_PER_CHAR;
+}
 
 /* ---------------------------- XO-Chip instructions ---------------------------- */
-
-
 
 // Save the range of registers Vx-Vy to memory starting at location I
 void st_range_vx_vy(XOChip* xochip, uint8_t x, uint8_t y)
@@ -343,17 +449,7 @@ void pitch_vx(XOChip* xochip, uint8_t x)
 	//TODO
 }
 
-void plane_scrollup_n(XOChip* xochip, uint8_t plane, uint8_t n)
-{   
-    // uint8_t buf[SCREEN_HEIGHT][SCREEN_WIDTH];
-    // memcpy(buf, xochip->bitplane[0] + n*SCREEN_WIDTH, (SCREEN_HEIGHT-n)*SCREEN_WIDTH);
-}
-
 void scrollup_n(XOChip* xochip, uint8_t n)
 {
-    if(xochip->bitmask == 1 || xochip->bitmask == 3)
-        plane_scrollup_n(xochip, 0, n);
-
-    if(xochip->bitmask == 2 || xochip->bitmask == 3)
-        plane_scrollup_n(xochip, 1, n);
+    scroll(xochip, up, n);
 }

@@ -3,16 +3,19 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include "fontsets.h"
 
 #define MEM_SIZE   0xFFFF
 #define PROG_START 0x200
-#define SCREEN_WIDTH 64
-#define SCREEN_HEIGHT 32
 #define NUM_KEYS 16
-#define FONTSET_START_ADDRESS 0x50
-#define FONTSET_BYTES_PER_DIGIT 5
-#define FONTSET_NDIGITS 16
-#define FONTSET_SIZE FONTSET_NDIGITS*FONTSET_BYTES_PER_DIGIT
+#define CHIP8_SCREEN_WIDTH 64
+#define CHIP8_SCREEN_HEIGHT 32
+#define SCHIP_SCREEN_WIDTH 128
+#define SCHIP_SCREEN_HEIGHT 64
+#define CHIP8_FONTSET_START_ADDRESS 0x0
+#define SCHIP_FONTSET_START_ADDRESS 0x50
 
 typedef struct _XOChip
 {
@@ -27,7 +30,9 @@ typedef struct _XOChip
     uint8_t delayTimer, soundTimer; // 8-bit registers for sound and delay timers
     uint8_t bitmask;                // Bitplane bitmask
 
-    uint8_t bitplane[2][SCREEN_HEIGHT][SCREEN_WIDTH];
+    uint8_t screen_w;
+    uint8_t screen_h;
+    uint8_t bitplane[2][SCHIP_SCREEN_HEIGHT][SCHIP_SCREEN_WIDTH];
     uint8_t keyboard[NUM_KEYS];
 
     uint8_t pcIncFlag;
@@ -72,6 +77,18 @@ void st_i_vx(XOChip* xochip, uint8_t x);
 void ld_vx_i(XOChip* xochip, uint8_t x);
 
 /* -------------- Super Chip instructions -------------- */
+
+void hires(XOChip* xochip);
+void lores(XOChip* xochip);
+void scrolldown_n(XOChip* xochip, uint8_t n);
+void scrollright(XOChip* xochip);
+void scrollleft(XOChip* xochip);
+void big_drw_vx_vy(XOChip* xochip, uint8_t x, uint8_t y);
+void big_ld_i_vx(XOChip* xochip, uint8_t x);
+
+// void st_fl(XOChip* xochip, uint8_t x); -> XO-Chip generalization
+// void ld_fl(XOChip* xochip, uint8_t x); -> XO-Chip generalization
+// void exit();                           -> Handled in main
 
 /* -------------- XO-Chip instructions -------------- */
 

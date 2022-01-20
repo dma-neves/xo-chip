@@ -7,6 +7,7 @@
 #include "xochip.h"
 #include "buzzer.h"
 #include "display.h"
+#include "fontsets.h"
 
 #define W_HEIGHT 320
 #define W_WIDTH  640
@@ -24,30 +25,10 @@ sfEvent event;
 uint8_t runningf = 1;
 uint8_t address16f = 0; // Load 16bit address (XO-Chip instruction)
 
-uint8_t fontset[FONTSET_SIZE] =
-{
-	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-	0x20, 0x60, 0x20, 0x20, 0x70, // 1
-	0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-	0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-	0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-	0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-	0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-	0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-	0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-	0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-	0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-	0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-};
-
 void setupWindow(int scale);
-void handleCloseEvent();
-void loadRom(char* file, XOChip* xochip);
-void resetSystem(XOChip* xochip);
+void handleSfEvents();
+int loadRom(char* file, XOChip* xochip);
+void reset(XOChip* xochip);
 void executeInstruction(XOChip* xochip);
 void updateTimers(XOChip* xochip);
 void handleInput(XOChip* xochip);
@@ -55,25 +36,30 @@ void handleInput(XOChip* xochip);
 int main(int argc, char** argv)
 {
     if(argc < 2)
-        printf("usage: ./xochip.out rom.ch8 displayScale (displayScale is optional, default value is 1)\n");
-    
+    {
+        printf("usage: ./xochip.out rom.ch8 displayScale colorScheme\n");
+        printf("default displayScale: 1\ndefault colorScheme: 0\n");
+    }
     else
     {
         int scale = (argc == 3) ? atoi( argv[2] ) : 1;
+        int colorScheme = (argc == 4) ? atoi( argv[3] ) : 0;
         setupWindow(scale);
+        setupDisplay(colorScheme);
+
         sfclock = sfClock_create();
         buzzer = buzzerCreate();
         
         XOChip* xochip = malloc(sizeof(XOChip));
-        resetSystem(xochip);
-        loadRom(argv[1], xochip);
+        reset(xochip);
+        if( loadRom(argv[1], xochip) ) return -1;
 
         float timer_60 = 0;  // 60Hz  timer
         float timer_500 = 0; // 500Hz timer
 
         while(runningf)
         {
-            handleCloseEvent();
+            handleSfEvents();
 
             float dt = sfTime_asSeconds( sfClock_restart(sfclock) );
             timer_60 += dt;
@@ -87,9 +73,10 @@ int main(int argc, char** argv)
                 renderDisplay(xochip, window);
             }
 
-            if(timer_500 >= 1.f/500.f)
+            if(timer_500 >= 1.f/5000.f)
             {
-                // The chip-8 runs on a 500Hz "sfclock"
+                handleInput(xochip);
+                // The chip-8 has a clock speed of 500Hz
                 timer_500 = 0;
                 executeInstruction(xochip);
             }
@@ -112,20 +99,23 @@ void setupWindow(int scale)
     window = sfRenderWindow_create(mode, "XO-Chip", sfResize | sfClose, NULL);
 }
 
-void handleCloseEvent()
+void handleSfEvents()
 {
-    while(sfRenderWindow_pollEvent(window, &event))
+    if(sfRenderWindow_hasFocus(window))
     {
-        if(event.type == sfEvtClosed || sfKeyboard_isKeyPressed(sfKeyEscape))
+        while(sfRenderWindow_pollEvent(window, &event))
         {
-            runningf = 0;
-            sfRenderWindow_close(window);
+            if(event.type == sfEvtClosed || sfKeyboard_isKeyPressed(sfKeyEscape))
+            {
+                runningf = 0;
+                sfRenderWindow_close(window);
+            }
         }
     }
 }
 
-
-void loadRom(char* file, XOChip* xochip)
+// Returns 0 if successful and !0 otherwise
+int loadRom(char* file, XOChip* xochip)
 {
     FILE *fp;
     int c, i, max = MEM_SIZE;
@@ -134,30 +124,32 @@ void loadRom(char* file, XOChip* xochip)
     if (fp == NULL)
     {
         fprintf(stderr, "cannot open input file\n");
-        return;
+        return -1;
     }
 
     for (i = 0; i < max && (c = getc(fp)) != EOF; i++)
         xochip->mem[PROG_START + i] = (uint8_t)c;
 
-    fclose(fp);
+    return fclose(fp);
 }
 
 void loadFonts(XOChip* xochip)
 {
-    int i = 0;
-    for(; i < FONTSET_SIZE; i++)
-    {
-        xochip->mem[FONTSET_START_ADDRESS + i] = fontset[i]; 
-    }
+    for(int i = 0; i < CHIP8_FONTSET_SIZE; i++)
+        xochip->mem[CHIP8_FONTSET_START_ADDRESS + i] = chip8_character(i); 
+
+    for(int i = 0; i < SCHIP_FONTSET_SIZE; i++)
+        xochip->mem[SCHIP_FONTSET_START_ADDRESS + i] = schip_character(i); 
 }
 
-void resetSystem(XOChip* xochip)
+void reset(XOChip* xochip)
 {
     address16f = 0;
     memset(xochip, 0, sizeof(XOChip));
     xochip->PC = PROG_START;
     xochip->bitmask = 1;
+    xochip->screen_w = CHIP8_SCREEN_WIDTH;
+    xochip->screen_h = CHIP8_SCREEN_HEIGHT;
     loadFonts(xochip);
     srand(time(NULL));
     resetDisplay();
@@ -177,9 +169,9 @@ void executeInstruction(XOChip* xochip)
         getchar();
     #endif
 
-    // Load 16bit address
     if(address16f) {
 
+        // Load 16bit address
         uint16_t address = (uint16_t)highbyte << 8 | (uint16_t)lowbyte;
         ld_i_adr16(xochip, address);
         address16f = 0;
@@ -201,7 +193,14 @@ void executeInstruction(XOChip* xochip)
     switch(word[3])
     {
         case 0x0:
-            switch(lowbyte)
+
+            if(word[1] == 0xC)
+                scrolldown_n(xochip, word[0]);
+
+            else if(word[1] == 0xD)
+                scrollup_n(xochip, word[0]);
+
+            else switch(lowbyte)
             {
                 case 0xE0:
                     cls(xochip); 
@@ -209,6 +208,26 @@ void executeInstruction(XOChip* xochip)
 
                 case 0xEE:
                     ret(xochip);
+                    break;
+
+                case 0xFB:
+                    scrollright(xochip);
+                    break;
+
+                case 0xFC:
+                    scrollleft(xochip);
+                    break;
+
+                case 0xFD:
+                    runningf = 0; // exit
+                    break;
+
+                case 0xFE:
+                    lores(xochip);
+                    break;
+
+                case 0xFF:
+                    hires(xochip);
                     break;
 
                 default:
@@ -316,7 +335,12 @@ void executeInstruction(XOChip* xochip)
             break;
 
         case 0xD:
-            drw_vx_vy(xochip, word[2], word[1], word[0]);
+            //printf("A\n");
+            if(word[0] != 0)
+                drw_vx_vy(xochip, word[2], word[1], word[0]);
+            else
+                big_drw_vx_vy(xochip, word[2], word[1]);
+            
             break;
 
         case 0xE:
@@ -337,6 +361,10 @@ void executeInstruction(XOChip* xochip)
             {
                 case 0x00:
                     address16f = 1;
+                    break;
+
+                case 0x01:
+                    plane_n(xochip, word[2]);
                     break;
 
                 case 0x07:
@@ -361,6 +389,10 @@ void executeInstruction(XOChip* xochip)
 
                 case 0x29:
                     ld_i_vx(xochip, word[2]);
+                    break;
+
+                case 0x30:
+                    big_ld_i_vx(xochip, word[2]);
                     break;
 
                 case 0x33:
@@ -392,10 +424,10 @@ void executeInstruction(XOChip* xochip)
 
 void updateTimers(XOChip* xochip)
 {
-    if(xochip->delayTimer != 0)
+    if(xochip->delayTimer)
         xochip->delayTimer--;
 
-    if(xochip->soundTimer != 0)
+    if(xochip->soundTimer)
     {
         xochip->soundTimer--;
         sfSound_play(buzzer);
@@ -406,26 +438,28 @@ void updateTimers(XOChip* xochip)
 
 void handleInput(XOChip* xochip)
 {
-    xochip->keyboard[0x1] = sfKeyboard_isKeyPressed(sfKeyNum1);
-    xochip->keyboard[0x2] = sfKeyboard_isKeyPressed(sfKeyNum2);
-    xochip->keyboard[0x3] = sfKeyboard_isKeyPressed(sfKeyNum3);
-    xochip->keyboard[0xC] = sfKeyboard_isKeyPressed(sfKeyNum4);
+    if(sfRenderWindow_hasFocus(window))
+    {
+        xochip->keyboard[0x1] = sfKeyboard_isKeyPressed(sfKeyNum1);
+        xochip->keyboard[0x2] = sfKeyboard_isKeyPressed(sfKeyNum2);
+        xochip->keyboard[0x3] = sfKeyboard_isKeyPressed(sfKeyNum3);
+        xochip->keyboard[0xC] = sfKeyboard_isKeyPressed(sfKeyNum4);
 
-    xochip->keyboard[0x4] = sfKeyboard_isKeyPressed(sfKeyQ);
-    xochip->keyboard[0x5] = sfKeyboard_isKeyPressed(sfKeyW);
-    xochip->keyboard[0x6] = sfKeyboard_isKeyPressed(sfKeyE);
-    xochip->keyboard[0xD] = sfKeyboard_isKeyPressed(sfKeyR);
+        xochip->keyboard[0x4] = sfKeyboard_isKeyPressed(sfKeyQ);
+        xochip->keyboard[0x5] = sfKeyboard_isKeyPressed(sfKeyW);
+        xochip->keyboard[0x6] = sfKeyboard_isKeyPressed(sfKeyE);
+        xochip->keyboard[0xD] = sfKeyboard_isKeyPressed(sfKeyR);
 
-    xochip->keyboard[0x7] = sfKeyboard_isKeyPressed(sfKeyA);
-    xochip->keyboard[0x8] = sfKeyboard_isKeyPressed(sfKeyS);
-    xochip->keyboard[0x9] = sfKeyboard_isKeyPressed(sfKeyD);
-    xochip->keyboard[0xE] = sfKeyboard_isKeyPressed(sfKeyF);
+        xochip->keyboard[0x7] = sfKeyboard_isKeyPressed(sfKeyA);
+        xochip->keyboard[0x8] = sfKeyboard_isKeyPressed(sfKeyS);
+        xochip->keyboard[0x9] = sfKeyboard_isKeyPressed(sfKeyD);
+        xochip->keyboard[0xE] = sfKeyboard_isKeyPressed(sfKeyF);
 
-    xochip->keyboard[0xA] = sfKeyboard_isKeyPressed(sfKeyZ);
-    xochip->keyboard[0x0] = sfKeyboard_isKeyPressed(sfKeyX);
-    xochip->keyboard[0xB] = sfKeyboard_isKeyPressed(sfKeyC);
-    xochip->keyboard[0xF] = sfKeyboard_isKeyPressed(sfKeyV);
-
+        xochip->keyboard[0xA] = sfKeyboard_isKeyPressed(sfKeyZ);
+        xochip->keyboard[0x0] = sfKeyboard_isKeyPressed(sfKeyX);
+        xochip->keyboard[0xB] = sfKeyboard_isKeyPressed(sfKeyC);
+        xochip->keyboard[0xF] = sfKeyboard_isKeyPressed(sfKeyV);
+    }
 }
 
 /* --------------------- Debug --------------------- */
