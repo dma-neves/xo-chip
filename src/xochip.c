@@ -186,6 +186,9 @@ void draw_plane(XOChip* xochip, int plane, uint8_t x, uint8_t y, uint8_t width, 
             int py = (xochip->V[y]+row) % xochip->screen_h;
             int px = (xochip->V[x]+col) % xochip->screen_w;
 
+            if(px >= xochip->screen_w || py >= xochip->screen_h)
+                continue;
+
             uint16_t bmask = (width == 8) ? (0x80 >> col) : (0x8000 >> col);
 
             uint8_t* pixel = &xochip->bitplane[plane][py][px];
