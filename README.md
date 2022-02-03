@@ -22,5 +22,5 @@
   - [More Chip8, SuperChip and XO-Chip games](https://johnearnest.github.io/chip8Archive/?sort=platform)
 
 **Images**
-<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_a.png)
-<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_b.png)
+  - DVN8 <br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_a.png)
+  - sweetcopter <br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_b.png)
