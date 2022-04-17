@@ -15,12 +15,13 @@
   - [CSFML library](https://www.sfml-dev.org/download/csfml/).
 
 **Controls**
-<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/controls.png)
+<br/> ![alt text](other/controls.png)
 
 **Games**
   - Some games are available inside the /roms folder.
   - [More Chip8, SuperChip and XO-Chip games](https://johnearnest.github.io/chip8Archive/?sort=platform)
 
 **Images**
-<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_a.png)
-<br/> ![alt text](https://github.com/dma-neves/xo-chip/blob/main/other/image_b.png)
+- Tetris <br/> ![alt text](other/image_a.png)
+
+- Sweetcopter <br/> ![alt text](other/image_b.png)
